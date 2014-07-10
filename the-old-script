@@ -1,0 +1,113 @@
+#!/usr/bin/env ruby
+require 'rabbitmq_manager'
+require 'etcd'
+
+def setup_cluster
+  start_rabbitmq
+  unless clustered?
+    join_cluster if registered_nodes.any?
+  end
+  ensure_registered
+end
+
+def join_cluster
+  `rabbitmqctl stop_app`
+  system("rabbitmqctl join_cluster #{registered_nodes.last}")
+  `rabbitmqctl start_app`
+  ensure_registered
+end
+
+def registered_nodes
+  (etcd_nodes || {}).values - [cluster_name]
+end
+
+def running_nodes
+  rabbitmq.nodes.select { |n| n["running"] }
+end
+
+def stopped_nodes
+  rabbitmq.nodes.select { |n| !n["running"] }
+end
+
+def etcd_nodes
+  etcd.get('/rabbitmq/nodes')
+end
+
+def clustered?
+  rabbitmq.nodes.size > 1
+end
+
+def ensure_registered
+  key = "/rabbitmq/nodes/#{cluster_name}"
+  unless etcd.exists?(key)
+    etcd.set(key, cluster_name)
+  end
+end
+
+def cluster_name
+  @_cluster_name ||= rabbitmq.overview["cluster_name"]
+end
+
+def rabbitmq_up?
+  cluster_name
+rescue Faraday::ConnectionFailed
+  false
+end
+
+def rabbitmq
+  @_rabbitmq ||= RabbitMQManager.new 'http://guest:guest@localhost:15672'
+end
+
+def etcd
+  unless @_client
+    @_client = Etcd::Client.new(uri: ENV['ETCD_HOST'])
+    @_client.connect
+  end
+  @_client
+end
+
+def start_rabbitmq
+  if erlang_cookie
+    setup_erlang_cookie
+    start_rabbitmq_server
+  else
+    start_rabbitmq_server
+    save_erlang_cookie
+  end
+end
+
+def start_rabbitmq_server
+  system("/usr/sbin/rabbitmq-server &")
+  waits = 1
+  until rabbitmq_up?
+    puts "waiting #{waits} seconds for rabbitmq to start"
+    sleep waits
+    waits *= 2
+  end
+end
+
+def erlang_cookie
+  etcd.get('/rabbitmq/erlang_cookie')
+end
+
+def save_erlang_cookie
+  etcd.set('/rabbitmq/erlang_cookie', IO.read('/var/lib/rabbitmq/.erlang.cookie'))
+end
+
+def setup_erlang_cookie
+  File.open('/var/lib/rabbitmq/.erlang.cookie', 'w') { |file| file.write erlang_cookie }
+  `chown rabbitmq:rabbitmq /var/lib/rabbitmq/.erlang.cookie`
+  `chmod 400 /var/lib/rabbitmq/.erlang.cookie`
+end
+
+setup_cluster
+
+while true do
+  if etcd_nodes.size != running_nodes
+    stopped_nodes.each do |node|
+      `rabbitmqctl forget_cluster_node #{node['name']}`
+      etcd.delete("/rabbitmq/nodes/#{node['name']}")
+    end
+  end
+  sleep 0.5
+end
