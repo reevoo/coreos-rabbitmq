@@ -5,7 +5,7 @@ require 'rabbitmq/cluster/version'
 
 Gem::Specification.new do |spec|
   spec.name          = "rabbitmq-cluster"
-  spec.version       = Rabbitmq::Cluster::VERSION
+  spec.version       = RabbitMQ::Cluster::VERSION
   spec.authors       = ["Ed Robinson"]
   spec.email         = ["ed.robinson@reevoo.com"]
   spec.summary       = %q{ Manages rabbitmq-server within a CoreOS cluster }
@@ -24,4 +24,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "bundler", "~> 1.5"
   spec.add_development_dependency "rake"
   spec.add_development_dependency "rspec"
+  spec.add_development_dependency "pry"
 end

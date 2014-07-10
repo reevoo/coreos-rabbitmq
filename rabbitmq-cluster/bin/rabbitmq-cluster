@@ -1,0 +1,15 @@
+require 'rabbitmq/cluster'
+
+server = RabbitMQ::Cluster::Server.new(
+  RabbitMQManager.new 'http://guest:guest@localhost:15672',
+  RabbitMQ::Cluster::Etcd.new(
+    Etcd::Client.connect(uris: [ENV['ETCD_HOST']])
+  )
+)
+
+server.start
+
+while true do
+  server.synchronize
+  sleep 0.5
+end
