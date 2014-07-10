@@ -1,7 +1,7 @@
 require 'spec_helper'
 
 describe RabbitMQ::Cluster::Etcd do
-  let(:etcd_client) { double }
+  let(:etcd_client) { double(:etcd, connect: true) }
   subject { described_class.new(etcd_client) }
 
   describe '#nodes' do

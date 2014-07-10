@@ -7,6 +7,7 @@ module RabbitMQ::Cluster
 
     def initialize(client)
       self.client = client
+      client.connect
     end
 
     def aquire_lock
