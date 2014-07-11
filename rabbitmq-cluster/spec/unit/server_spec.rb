@@ -70,7 +70,7 @@ describe RabbitMQ::Cluster::Server do
 
     context 'waiting for the server to start' do
       it 'waits until the server has started' do
-        expect(subject).to receive(:up?).exactly(3).times.and_return(false, true)
+        expect(subject).to receive(:up?).exactly(2).times.and_return(false, true)
         subject.start
       end
     end
@@ -100,12 +100,6 @@ describe RabbitMQ::Cluster::Server do
           it 'does nothing' do
             expect(subject).to_not receive(:"`")
             subject.start
-          end
-
-          it 'registers itself' do
-            allow(client).to receive(:overview).and_return('cluster_name' => 'rabbit@this_node')
-            subject.start
-            expect(etcd.nodes).to include('rabbit@this_node')
           end
         end
 
@@ -183,13 +177,6 @@ describe RabbitMQ::Cluster::Server do
         allow(client).to receive(:overview).and_return("cluster_name" => "rabbit@this_node")
       end
 
-      context 'the node is up' do
-        it 'registers the node' do
-          expect(etcd).to receive(:register).with('rabbit@this_node')
-          subject.synchronize
-        end
-      end
-
       context 'the node is not up' do
         before do
           allow(client).to receive(:aliveness_test).and_return("status" => "agghghghgh")
@@ -224,6 +211,31 @@ describe RabbitMQ::Cluster::Server do
           expect(subject).to_not receive(:system)
           subject.synchronize
         end
+      end
+    end
+  end
+
+  describe '#healthcheck' do
+    context 'the node is up' do
+      before do
+        allow(client).to receive(:aliveness_test).and_return("status" => "ok")
+        allow(client).to receive(:overview).and_return("cluster_name" => "rabbit@this_node")
+      end
+
+      it 'registers the node' do
+        expect(etcd).to receive(:register).with('rabbit@this_node')
+        subject.healthcheck
+      end
+    end
+
+    context 'the node is down' do
+      before do
+        allow(client).to receive(:aliveness_test).and_return("status" => "i am really broken")
+      end
+
+      it 'registers the node' do
+        expect(etcd).to_not receive(:register)
+        subject.healthcheck
       end
     end
   end

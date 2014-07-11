@@ -26,14 +26,12 @@ module RabbitMQ::Cluster
     end
 
     def synchronize
-      join_cluster if up?
-      return if etcd.nodes == running_nodes
+      remove_stopped_nodes if stopped_nodes.any?
+      join_cluster
+    end
 
-      etcd.aquire_lock do
-        stopped_nodes.each do |node_name|
-          system("rabbitmqctl forget_cluster_node #{node_name}")
-        end
-      end
+    def healthcheck
+      register if up?
     end
 
     def name
@@ -60,17 +58,25 @@ module RabbitMQ::Cluster
       nodes(false)
     end
 
+    def remove_stopped_nodes
+      etcd.aquire_lock do
+        stopped_nodes.each do |node_name|
+          system("rabbitmqctl forget_cluster_node #{node_name}")
+        end
+      end
+    end
+
     def nodes(running)
       client.nodes.select { |n| n["running"] == running }.map { |n| n["name"] }.sort
     end
 
     def join_cluster
-      if !clustered? && nodes_to_join.any?
+      if !clustered? && nodes_to_join.any? && up?
         `rabbitmqctl stop_app`
         system("rabbitmqctl join_cluster #{nodes_to_join.first}")
         `rabbitmqctl start_app`
+        register if up?
       end
-      register if up?
     end
 
     def clustered?

@@ -7,9 +7,7 @@ server = RabbitMQ::Cluster::Server.new(
   )
 )
 
-server.start
-
 while true do
-  server.synchronize
-  sleep 10
+  server.healthcheck
+  sleep 4
 end
