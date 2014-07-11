@@ -33,6 +33,17 @@ describe RabbitMQ::Cluster::Etcd do
       )
       subject.register(nodename)
     end
+
+    context 'somthing is wrong with etcd backend' do
+      before do
+        allow(subject).to receive(:wait).and_return(0.001)
+      end
+
+      it 'retry 10 times' do
+        expect(etcd_client).to receive(:set).exactly(10).times.and_raise
+        expect { subject.register('foo', 0.0001) }.to raise_error
+      end
+    end
   end
 
 
