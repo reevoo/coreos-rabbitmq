@@ -23,6 +23,11 @@ module RabbitMQ::Cluster
 
     def register(node_name)
       client.set(key_for(node_name), node_name, ttl: 10)
+      try = 0
+    rescue
+      sleep 1
+      try += 1
+      retry if try < 10
     end
 
     def erlang_cookie
