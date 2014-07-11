@@ -57,15 +57,7 @@ module RabbitMQ::Cluster
     end
 
     def test_aliveness?
-      unless client.vhosts.any? {|vh| vh['name'] == 'aliveness-test' }
-        client.vhost_create('aliveness-test')
-      end
-
-      unless client.user_permissions('guest').any? {|up| up['vhost'] == 'aliveness-test' }
-        client.user_set_permissions('guest', 'aliveness-test', '.*', '.*', '.*')
-      end
-
-      client.aliveness_test('aliveness-test')['status'] == 'ok'
+      client.aliveness_test('/')['status'] == 'ok'
     end
 
     def join_cluster

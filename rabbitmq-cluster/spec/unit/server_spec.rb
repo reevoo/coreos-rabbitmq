@@ -38,33 +38,6 @@ describe RabbitMQ::Cluster::Server do
     end
 
     context 'we can can connect to the management api' do
-      context 'and the test vhost is allready setup' do
-        before do
-          allow(client).to receive(:vhosts).and_return([{'name' => 'aliveness-test'}])
-          allow(client).to receive(:user_permissions).and_return([{'vhost' => 'aliveness-test'}])
-        end
-
-        it 'wont set up the vhost' do
-          expect(client).to_not receive(:vhost_create)
-          expect(client).to_not receive(:user_set_permissions)
-          subject.up?
-        end
-      end
-
-      context 'and the test vhost is not setup' do
-
-        before do
-          allow(client).to receive(:vhosts).and_return([])
-          allow(client).to receive(:user_permissions).and_return([])
-        end
-
-        it 'will set up the vhost' do
-          expect(client).to receive(:vhost_create).with('aliveness-test')
-          expect(client).to receive(:user_set_permissions).with('guest', 'aliveness-test', '.*', '.*', '.*')
-          subject.up?
-        end
-      end
-
       context 'the aliveness test is working' do
         specify { expect(subject).to be_up }
       end
