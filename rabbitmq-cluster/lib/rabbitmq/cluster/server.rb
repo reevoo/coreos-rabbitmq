@@ -1,5 +1,4 @@
 require 'rabbitmq_manager'
-require 'json'
 
 class RabbitMQManager
   def aliveness_test(vhost)
@@ -66,7 +65,7 @@ module RabbitMQ::Cluster
         client.user_set_permissions('guest', 'aliveness-test', '.*', '.*', '.*')
       end
 
-      JSON.parse(client.aliveness_test('aliveness-test'))['status'] == 'ok'
+      client.aliveness_test('aliveness-test')['status'] == 'ok'
     end
 
     def join_cluster

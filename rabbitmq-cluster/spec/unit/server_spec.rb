@@ -29,7 +29,7 @@ describe RabbitMQ::Cluster::Server do
     let(:client) { double(:client).as_null_object }
 
     before do
-      allow(client).to receive(:aliveness_test).and_return('{ "status":"ok" }')
+      allow(client).to receive(:aliveness_test).and_return({ "status" => "ok" })
     end
 
     it 'returns false if we cannot connect to the management api' do
@@ -71,7 +71,7 @@ describe RabbitMQ::Cluster::Server do
 
       context 'the aliveness test is not working' do
         before do
-          allow(client).to receive(:aliveness_test).and_return('{ "status":"borked" }')
+          allow(client).to receive(:aliveness_test).and_return({ "status" => "borked" })
         end
 
         specify { expect(subject).to_not be_up }
@@ -84,7 +84,7 @@ describe RabbitMQ::Cluster::Server do
 
     before do
       allow(subject).to receive(:system)
-      allow(client).to receive(:aliveness_test).and_return('{ "status":"ok" }')
+      allow(client).to receive(:aliveness_test).and_return({ "status" => "ok" })
       allow(File).to receive(:open)
       allow(IO).to receive(:read)
       allow(subject).to receive(:"`")
