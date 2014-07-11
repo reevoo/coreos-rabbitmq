@@ -70,7 +70,7 @@ describe RabbitMQ::Cluster::Server do
 
     context 'waiting for the server to start' do
       it 'waits until the server has started' do
-        expect(subject).to receive(:up?).twice.and_return(false, true)
+        expect(subject).to receive(:up?).exactly(3).times.and_return(false, true)
         subject.start
       end
     end
@@ -173,49 +173,57 @@ describe RabbitMQ::Cluster::Server do
   describe '#synchronize' do
     context 'etcd has more nodes than are running' do
       before do
-        etcd.register('rabbit@node1')
-        etcd.register('rabbit@node2')
         allow(client).to receive(:nodes)
           .and_return([
             {"name" => "rabbit@node1", "running" => true},
             {"name" => "rabbit@node2", "running" => false}
           ])
-        allow(subject).to receive(:"`")
-        allow(etcd).to receive(:deregister)
+        allow(subject).to receive(:system)
+        allow(client).to receive(:aliveness_test).and_return("status" => "ok")
+        allow(client).to receive(:overview).and_return("cluster_name" => "rabbit@this_node")
       end
 
-      it 'aquires the lock before doing anything' do
-        expect(etcd).to receive(:aquire_lock).and_call_original
-        subject.synchronize
+      context 'the node is up' do
+        it 'registers the node' do
+          expect(etcd).to receive(:register).with('rabbit@this_node')
+          subject.synchronize
+        end
+      end
+
+      context 'the node is not up' do
+        before do
+          allow(client).to receive(:aliveness_test).and_return("status" => "agghghghgh")
+        end
+
+        it 'does not register the node' do
+          expect(etcd).to_not receive(:register).with('rabbit@this_node')
+          subject.synchronize
+        end
       end
 
       it 'removes the stopped node from the cluster' do
-        expect(subject).to receive(:"`")
+        expect(subject).to receive(:system)
           .with('rabbitmqctl forget_cluster_node rabbit@node2')
         subject.synchronize
       end
 
-      it 'removes the stopped node from etcd' do
-        expect(etcd).to receive(:deregister)
-          .with('rabbit@node2')
-        subject.synchronize
-      end
-    end
 
-    context 'etcd has the same nodes as are running' do
-      before do
-        etcd.register('rabbit@node1')
-        etcd.register('rabbit@node2')
-        allow(client).to receive(:nodes)
+      context 'etcd nodes matches running nodes in the cluster' do
+        before do
+          etcd.register('rabbit@node1')
+          etcd.register('rabbit@node2')
+          allow(client).to receive(:nodes)
           .and_return([
-            {"name" => "rabbit@node1", "running" => true},
-            {"name" => "rabbit@node2", "running" => true}
+                      {"name" => "rabbit@node1", "running" => true},
+                      {"name" => "rabbit@node2", "running" => true},
+                      {"name" => "rabbit@this_node", "running" => true}
           ])
-      end
+        end
 
-      it 'does nothing' do
-        expect(etcd).to_not receive(:aquire_lock)
-        subject.synchronize
+        it 'will not remove any nodes' do
+          expect(subject).to_not receive(:system)
+          subject.synchronize
+        end
       end
     end
   end

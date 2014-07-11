@@ -24,44 +24,17 @@ describe RabbitMQ::Cluster::Etcd do
   describe '#register' do
     let(:nodename) { 'rabbit@mynode' }
 
-    context 'the node is not yet registered' do
-
-      before do
-        allow(etcd_client).to receive(:exists?)
-                                .with("/rabbitmq/nodes/#{nodename}")
-      end
-
-      it 'sets the key in etcd' do
-        expect(etcd_client).to receive(:set)
-                                 .with(
-                                   "/rabbitmq/nodes/#{nodename}",
-                                   nodename
-                                 )
-        subject.register(nodename)
-      end
-    end
-
-    context 'the node is allready registered' do
-      before do
-        allow(etcd_client).to receive(:exists?)
-                               .with("/rabbitmq/nodes/#{nodename}")
-                                .and_return true
-      end
-
-      it 'does nothing' do
-        expect(etcd_client).to_not receive(:set)
-        subject.register(nodename)
-      end
+    it 'sets the key in etcd' do
+      expect(etcd_client).to receive(:set)
+      .with(
+        "/rabbitmq/nodes/#{nodename}",
+        nodename,
+        ttl: 10
+      )
+      subject.register(nodename)
     end
   end
 
-  describe '#deregister' do
-    it 'deletes the correct key' do
-      expect(etcd_client).to receive(:delete)
-        .with('/rabbitmq/nodes/rabbit@foobah')
-      subject.deregister('rabbit@foobah')
-    end
-  end
 
   describe '#erlang_cookie' do
     let(:erlang_cookie) { 'afbdgCVB23423bh324h' }
@@ -104,12 +77,6 @@ describe RabbitMQ::Cluster::Etcd do
         expect(etcd_client).to receive(:update).with('/rabbitmq/lock', false, true).and_return(true)
 
         subject.aquire_lock { thingy.run }
-      end
-
-      it 'gets angry if something odd happens' do
-        allow(etcd_client).to receive(:update).with('/rabbitmq/lock', false, true).and_return(false)
-
-        expect { subject.aquire_lock { thingy.run } }.to raise_error
       end
     end
 

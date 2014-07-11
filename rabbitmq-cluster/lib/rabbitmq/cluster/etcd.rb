@@ -14,19 +14,15 @@ module RabbitMQ::Cluster
       sleep 1 until lock = client.update('/rabbitmq/lock', true, false)
       yield if lock
     ensure
-      raise unless client.update('/rabbitmq/lock', false, true)
+      client.update('/rabbitmq/lock', false, true)
     end
 
     def nodes
-      (client.get('/rabbitmq/nodes') || {}).values
+      (client.get('/rabbitmq/nodes') || {}).values.sort
     end
 
     def register(node_name)
-      client.set(key_for(node_name), node_name) unless client.exists?(key_for(node_name))
-    end
-
-    def deregister(node_name)
-      client.delete(key_for(node_name))
+      client.set(key_for(node_name), node_name, ttl: 10)
     end
 
     def erlang_cookie

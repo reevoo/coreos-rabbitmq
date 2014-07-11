@@ -26,12 +26,12 @@ module RabbitMQ::Cluster
     end
 
     def synchronize
-      return if etcd.nodes.size == running_nodes.size
+      join_cluster if up?
+      return if etcd.nodes == running_nodes
 
       etcd.aquire_lock do
-        stopped_nodes.each do |node|
-          `rabbitmqctl forget_cluster_node #{node['name']}`
-          etcd.deregister(node['name'])
+        stopped_nodes.each do |node_name|
+          system("rabbitmqctl forget_cluster_node #{node_name}")
         end
       end
     end
@@ -41,23 +41,27 @@ module RabbitMQ::Cluster
     end
 
     def up?
-      test_aliveness?
+      client.aliveness_test('/')['status'] == 'ok'
     rescue Faraday::ConnectionFailed
       false
     end
 
     private
 
+    def register
+      etcd.register(name)
+    end
+
     def running_nodes
-      client.nodes.select { |n| n["running"] }
+      nodes(true)
     end
 
     def stopped_nodes
-      client.nodes.select { |n| !n["running"] }
+      nodes(false)
     end
 
-    def test_aliveness?
-      client.aliveness_test('/')['status'] == 'ok'
+    def nodes(running)
+      client.nodes.select { |n| n["running"] == running }.map { |n| n["name"] }.sort
     end
 
     def join_cluster
@@ -66,7 +70,7 @@ module RabbitMQ::Cluster
         system("rabbitmqctl join_cluster #{nodes_to_join.first}")
         `rabbitmqctl start_app`
       end
-      etcd.register(name)
+      register if up?
     end
 
     def clustered?
