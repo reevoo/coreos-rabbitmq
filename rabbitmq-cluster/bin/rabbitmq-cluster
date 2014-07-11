@@ -1,7 +1,7 @@
 require 'rabbitmq/cluster'
 
 server = RabbitMQ::Cluster::Server.new(
-  RabbitMQManager.new 'http://guest:guest@localhost:15672',
+  RabbitMQManager.new('http://guest:guest@localhost:15672'),
   RabbitMQ::Cluster::Etcd.new(
     Etcd::Client.new(uri: ENV['ETCD_HOST'])
   )
