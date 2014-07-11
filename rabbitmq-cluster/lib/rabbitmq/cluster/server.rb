@@ -31,7 +31,7 @@ module RabbitMQ::Cluster
       etcd.aquire_lock do
         stopped_nodes.each do |node|
           `rabbitmqctl forget_cluster_node #{node['name']}`
-          etcd.delete("/rabbitmq/nodes/#{node['name']}")
+          etcd.deregister(node['name'])
         end
       end
     end

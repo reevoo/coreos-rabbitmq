@@ -55,6 +55,14 @@ describe RabbitMQ::Cluster::Etcd do
     end
   end
 
+  describe '#deregister' do
+    it 'deletes the correct key' do
+      expect(etcd_client).to receive(:delete)
+        .with('/rabbitmq/nodes/rabbit@foobah')
+      subject.deregister('rabbit@foobah')
+    end
+  end
+
   describe '#erlang_cookie' do
     let(:erlang_cookie) { 'afbdgCVB23423bh324h' }
     before do

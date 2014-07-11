@@ -208,7 +208,7 @@ describe RabbitMQ::Cluster::Server do
             {"name" => "rabbit@node2", "running" => false}
           ])
         allow(subject).to receive(:"`")
-        allow(etcd).to receive(:delete)
+        allow(etcd).to receive(:deregister)
       end
 
       it 'aquires the lock before doing anything' do
@@ -223,8 +223,8 @@ describe RabbitMQ::Cluster::Server do
       end
 
       it 'removes the stopped node from etcd' do
-        expect(etcd).to receive(:delete)
-          .with('/rabbitmq/nodes/rabbit@node2')
+        expect(etcd).to receive(:deregister)
+          .with('rabbit@node2')
         subject.synchronize
       end
     end

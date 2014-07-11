@@ -21,8 +21,11 @@ module RabbitMQ::Cluster
     end
 
     def register(node_name)
-      key = "/rabbitmq/nodes/#{node_name}"
-      client.set(key, node_name) unless client.exists?(key)
+      client.set(key_for(node_name), node_name) unless client.exists?(key_for(node_name))
+    end
+
+    def deregister(node_name)
+      client.delete(key_for(node_name))
     end
 
     def erlang_cookie
@@ -34,6 +37,12 @@ module RabbitMQ::Cluster
         '/rabbitmq/erlang_cookie',
         erlang_cookie
       )
+    end
+
+    private
+
+    def key_for(node_name)
+      "/rabbitmq/nodes/#{node_name}"
     end
   end
 end
