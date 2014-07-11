@@ -13,6 +13,7 @@ module RabbitMQ::Cluster
     def aquire_lock
       sleep 1 until lock = client.update('/rabbitmq/lock', true, false)
       yield if lock
+    ensure
       raise unless client.update('/rabbitmq/lock', false, true)
     end
 

@@ -124,5 +124,17 @@ describe RabbitMQ::Cluster::Etcd do
         subject.aquire_lock { thingy.run }
       end
     end
+
+    describe 'when something explodes' do
+      before do
+        allow(etcd_client).to receive(:update).with('/rabbitmq/lock', false, true).and_return(true)
+        allow(etcd_client).to receive(:update).with('/rabbitmq/lock', true, false).and_return(true)
+      end
+
+      it 'gives the lock back' do
+        expect(etcd_client).to receive(:update).with('/rabbitmq/lock', false, true).and_return(true)
+        expect { subject.aquire_lock { fail } }.to raise_error
+      end
+    end
   end
 end
