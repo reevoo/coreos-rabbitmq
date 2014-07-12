@@ -6,7 +6,7 @@ until server.up?
   while true do
     begin
       server.synchronize
-    rescue e
+    rescue => e
       puts e.message
       puts e.backtrace
     end
