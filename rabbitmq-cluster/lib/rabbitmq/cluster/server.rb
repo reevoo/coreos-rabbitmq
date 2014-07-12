@@ -7,7 +7,7 @@ class RabbitMQManager
   end
 end
 
-module RabbitMQ::Cluster
+class RabbitMQ::Cluster
   class Server
     attr_accessor :client, :etcd
     private :client, :etcd
@@ -24,18 +24,13 @@ module RabbitMQ::Cluster
       self.etcd = etcd
     end
 
-    def start
-      etcd.aquire_lock do
-        setup_erlang_cookie
-        start_rabbitmq_server
-        save_erlang_cookie
-        join_cluster
-      end
+    def prestart
+      setup_erlang_cookie
     end
 
     def synchronize
-      remove_stopped_nodes if stopped_nodes.any?
       join_cluster
+      remove_stopped_nodes if stopped_nodes.any?
     end
 
     def healthcheck
@@ -95,32 +90,11 @@ module RabbitMQ::Cluster
       etcd.nodes - [name]
     end
 
-    def start_rabbitmq_server
-      system("/usr/sbin/rabbitmq-server &")
-      waits = 1
-      until up?
-        sleep waits
-        waits *= 2
-      end
-    end
-
-    def erlang_cookie
-      IO.read('/var/lib/rabbitmq/.erlang.cookie')
-    end
-
     def setup_erlang_cookie
-      if etcd.erlang_cookie
-        File.open('/var/lib/rabbitmq/.erlang.cookie', 'w') { |file| file.write etcd.erlang_cookie }
-        `chown rabbitmq:rabbitmq /var/lib/rabbitmq/.erlang.cookie`
-        `chmod 400 /var/lib/rabbitmq/.erlang.cookie`
-      end
+      fail "erlang cookie must be preset in etcd" unless etcd.erlang_cookie
+      File.open('/var/lib/rabbitmq/.erlang.cookie', 'w') { |file| file.write etcd.erlang_cookie }
+      `chown rabbitmq:rabbitmq /var/lib/rabbitmq/.erlang.cookie`
+      `chmod 400 /var/lib/rabbitmq/.erlang.cookie`
     end
-
-    def save_erlang_cookie
-      unless etcd.erlang_cookie
-        etcd.erlang_cookie = erlang_cookie
-      end
-    end
-
   end
 end

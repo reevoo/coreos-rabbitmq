@@ -1,6 +1,6 @@
 require 'etcd'
 
-module RabbitMQ::Cluster
+class RabbitMQ::Cluster
   class Etcd
     attr_accessor :client
     private :client

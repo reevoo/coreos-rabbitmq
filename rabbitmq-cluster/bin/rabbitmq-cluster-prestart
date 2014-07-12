@@ -1,8 +1,4 @@
 require 'rabbitmq/cluster'
 
 server = RabbitMQ::Cluster::Server.build
-
-while true do
-  server.synchronize
-  sleep 10
-end
+server.prestart

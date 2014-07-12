@@ -64,41 +64,92 @@ describe RabbitMQ::Cluster::Server do
     end
   end
 
-  describe 'starting the server' do
-    let(:client) { double(:client).as_null_object }
 
+  describe '#prestart' do
+    context 'with an erlang cookie in etcd' do
+      before do
+        allow(File).to receive(:open)
+        allow(subject).to receive(:"`")
+        allow(etcd).to receive(:erlang_cookie).and_return('NummmNugnnmNuyum')
+      end
+
+      it 'sets up the erlang cookie' do
+        expect(File).to receive(:open).with('/var/lib/rabbitmq/.erlang.cookie', 'w')
+        subject.prestart
+      end
+
+      it 'sets up the ownership and permissions of the erlang cooke' do
+        expect(subject).to receive(:"`")
+          .with("chown rabbitmq:rabbitmq /var/lib/rabbitmq/.erlang.cookie")
+        expect(subject).to receive(:"`")
+          .with("chmod 400 /var/lib/rabbitmq/.erlang.cookie")
+        subject.prestart
+      end
+    end
+
+    context 'when there was no erlang cookie in etcd' do
+      before do
+        allow(etcd).to receive(:erlang_cookie).and_return(false)
+      end
+
+      it 'fails hard and fast' do
+        expect { subject.prestart }.to raise_error('erlang cookie must be preset in etcd')
+      end
+    end
+  end
+
+  describe '#synchronize' do
     before do
+      allow(client).to receive(:nodes)
+      .and_return([
+                  {"name" => "rabbit@node1", "running" => true},
+                  {"name" => "rabbit@node2", "running" => false}
+      ])
       allow(subject).to receive(:system)
-      allow(client).to receive(:aliveness_test).and_return({ "status" => "ok" })
-      allow(File).to receive(:open)
-      allow(IO).to receive(:read)
-      allow(subject).to receive(:"`")
+      allow(client).to receive(:aliveness_test).and_return("status" => "ok")
+      allow(client).to receive(:overview).and_return("node" => "rabbit@this_node")
     end
 
-    it 'shells out to start rabbitmq-server' do
-      expect(subject).to receive(:system).with("/usr/sbin/rabbitmq-server &")
-      subject.start
+    context 'the node is not up' do
+      before do
+        allow(client).to receive(:aliveness_test).and_return("status" => "agghghghgh")
+      end
+
+      it 'does not register the node' do
+        expect(etcd).to_not receive(:register).with('rabbit@this_node')
+        subject.synchronize
+      end
     end
 
-    context 'waiting for the server to start' do
-      it 'waits until the server has started' do
-        expect(subject).to receive(:up?).exactly(2).times.and_return(false, true)
-        subject.start
+    context 'the node is up' do
+      it 'removes the stopped node from the cluster' do
+        expect(subject).to receive(:system)
+        .with('rabbitmqctl forget_cluster_node rabbit@node2')
+        subject.synchronize
       end
     end
 
     describe 'joining the cluster' do
+      let(:client) { double(:client).as_null_object }
+
+      before do
+        allow(subject).to receive(:system)
+        allow(subject).to receive(:"`")
+        allow(client).to receive(:aliveness_test).and_return({ "status" => "ok" })
+      end
+
+
       context 'with no nodes in etcd' do
         it 'does nothing' do
           expect(subject).to_not receive(:"`")
-          subject.start
+          subject.synchronize
         end
       end
 
       context 'with some nodes allready in etcd' do
         before do
           allow(client).to receive(:nodes)
-            .and_return([{}])
+          .and_return([{}])
           etcd.register('rabbit@node1')
           etcd.register('rabbit@node2')
         end
@@ -106,122 +157,39 @@ describe RabbitMQ::Cluster::Server do
         context 'allready in a cluster' do
           before do
             allow(client).to receive(:nodes)
-              .and_return([{},{}])
+            .and_return([{},{}])
           end
 
           it 'does nothing' do
             expect(subject).to_not receive(:"`")
-            subject.start
+            expect(subject).to_not receive(:system)
+            subject.synchronize
           end
         end
 
         it 'tries to join the cluster' do
           expect(subject).to receive(:system).with("rabbitmqctl join_cluster rabbit@node1")
-          subject.start
+          subject.synchronize
         end
 
         it 'stops the management app before clustering' do
           expect(subject).to receive(:"`")
-                               .with('rabbitmqctl stop_app')
+          .with('rabbitmqctl stop_app')
           expect(subject).to receive(:"`")
-                               .with('rabbitmqctl start_app')
-          subject.start
+          .with('rabbitmqctl start_app')
+          subject.synchronize
         end
 
         it 'does not try to cluster with itself' do
           allow(client).to receive(:overview).and_return('node' => 'rabbit@node1')
           expect(subject).to receive(:system).with("rabbitmqctl join_cluster rabbit@node2")
-          subject.start
+          subject.synchronize
         end
 
         it 'registers itself' do
           allow(client).to receive(:overview).and_return('node' => 'rabbit@this_node')
-          subject.start
+          subject.synchronize
           expect(etcd.nodes).to include('rabbit@this_node')
-        end
-      end
-    end
-
-    context 'with an erlang cookie in etcd' do
-
-      before do
-        allow(etcd).to receive(:erlang_cookie).and_return('NummmNugnnmNuyum')
-      end
-
-      it 'sets up the erlang cookie' do
-        expect(File).to receive(:open).with('/var/lib/rabbitmq/.erlang.cookie', 'w')
-        subject.start
-      end
-
-      it 'sets up the ownership and permissions of the erlang cooke' do
-        expect(subject).to receive(:"`")
-        .with("chown rabbitmq:rabbitmq /var/lib/rabbitmq/.erlang.cookie")
-        expect(subject).to receive(:"`")
-        .with("chmod 400 /var/lib/rabbitmq/.erlang.cookie")
-        subject.start
-      end
-    end
-
-    context 'when there was no erlang cookie in etcd' do
-      before do
-        allow(IO).to receive(:read)
-          .with('/var/lib/rabbitmq/.erlang.cookie')
-          .and_return('ErLAnGCOookie')
-      end
-
-      it 'saves the on disk cookie to etcd' do
-        subject.start
-        expect(etcd.erlang_cookie).to eq 'ErLAnGCOookie'
-      end
-    end
-  end
-
-  describe '#synchronize' do
-    context 'etcd has more nodes than are running' do
-      before do
-        allow(client).to receive(:nodes)
-          .and_return([
-            {"name" => "rabbit@node1", "running" => true},
-            {"name" => "rabbit@node2", "running" => false}
-          ])
-        allow(subject).to receive(:system)
-        allow(client).to receive(:aliveness_test).and_return("status" => "ok")
-        allow(client).to receive(:overview).and_return("node" => "rabbit@this_node")
-      end
-
-      context 'the node is not up' do
-        before do
-          allow(client).to receive(:aliveness_test).and_return("status" => "agghghghgh")
-        end
-
-        it 'does not register the node' do
-          expect(etcd).to_not receive(:register).with('rabbit@this_node')
-          subject.synchronize
-        end
-      end
-
-      it 'removes the stopped node from the cluster' do
-        expect(subject).to receive(:system)
-          .with('rabbitmqctl forget_cluster_node rabbit@node2')
-        subject.synchronize
-      end
-
-
-      context 'etcd nodes matches running nodes in the cluster' do
-        before do
-          etcd.register('rabbit@node1')
-          etcd.register('rabbit@node2')
-          allow(client).to receive(:nodes)
-          .and_return([
-                      {"name" => "rabbit@node1", "running" => true},
-                      {"name" => "rabbit@node2", "running" => true},
-                      {"name" => "rabbit@this_node", "running" => true}
-          ])
-        end
-
-        it 'will not remove any nodes' do
-          expect(subject).to_not receive(:system)
-          subject.synchronize
         end
       end
     end

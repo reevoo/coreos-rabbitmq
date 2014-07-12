@@ -1,5 +1,5 @@
 module RabbitMQ
-  module Cluster
-    VERSION = "0.0.13"
+  class Cluster
+    VERSION = "0.0.14"
   end
 end
