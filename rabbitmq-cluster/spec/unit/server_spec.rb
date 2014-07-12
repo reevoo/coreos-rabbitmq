@@ -22,7 +22,7 @@ describe RabbitMQ::Cluster::Server do
     let(:client) do
       double(
         :rmq,
-        overview: { 'cluster_name' => 'rabbit@awesome-node' }
+        overview: { 'node' => 'rabbit@awesome-node' }
       )
     end
 
@@ -129,13 +129,13 @@ describe RabbitMQ::Cluster::Server do
         end
 
         it 'does not try to cluster with itself' do
-          allow(client).to receive(:overview).and_return('cluster_name' => 'rabbit@node1')
+          allow(client).to receive(:overview).and_return('node' => 'rabbit@node1')
           expect(subject).to receive(:system).with("rabbitmqctl join_cluster rabbit@node2")
           subject.start
         end
 
         it 'registers itself' do
-          allow(client).to receive(:overview).and_return('cluster_name' => 'rabbit@this_node')
+          allow(client).to receive(:overview).and_return('node' => 'rabbit@this_node')
           subject.start
           expect(etcd.nodes).to include('rabbit@this_node')
         end
@@ -186,7 +186,7 @@ describe RabbitMQ::Cluster::Server do
           ])
         allow(subject).to receive(:system)
         allow(client).to receive(:aliveness_test).and_return("status" => "ok")
-        allow(client).to receive(:overview).and_return("cluster_name" => "rabbit@this_node")
+        allow(client).to receive(:overview).and_return("node" => "rabbit@this_node")
       end
 
       context 'the node is not up' do
@@ -231,7 +231,7 @@ describe RabbitMQ::Cluster::Server do
     context 'the node is up' do
       before do
         allow(client).to receive(:aliveness_test).and_return("status" => "ok")
-        allow(client).to receive(:overview).and_return("cluster_name" => "rabbit@this_node")
+        allow(client).to receive(:overview).and_return("node" => "rabbit@this_node")
       end
 
       it 'registers the node' do

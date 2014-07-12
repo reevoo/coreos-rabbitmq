@@ -43,7 +43,7 @@ module RabbitMQ::Cluster
     end
 
     def name
-      @_name ||= client.overview["cluster_name"]
+      @_name ||= client.overview["node"]
     end
 
     def up?
