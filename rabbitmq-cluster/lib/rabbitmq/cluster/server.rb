@@ -74,7 +74,7 @@ class RabbitMQ::Cluster
     end
 
     def join_cluster
-      if !clustered? && nodes_to_join.any? && up?
+      if up? && !clustered? && nodes_to_join.any?
         system("rabbitmqctl stop_app")
         system("rabbitmqctl join_cluster #{nodes_to_join.first}")
         system("rabbitmqctl start_app")
@@ -85,8 +85,6 @@ class RabbitMQ::Cluster
 
     def clustered?
       client.nodes.size > 1
-    rescue Faraday::ConnectionFailed
-      false
     end
 
     def nodes_to_join
