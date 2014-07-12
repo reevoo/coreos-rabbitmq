@@ -1,4 +1,5 @@
 require 'rabbitmq_manager'
+require "rabbitmq/cluster/etcd"
 
 class RabbitMQManager
   def aliveness_test(vhost)
@@ -13,10 +14,8 @@ module RabbitMQ::Cluster
 
     def self.build
       new(
-        RabbitMQManager.new(ENV['RABBITMQ_MNGR'] || 'http://guest:guest@localhost:15672'),
-        RabbitMQ::Cluster::Etcd.new(
-          Etcd::Client.new(uri: ENV['ETCD_HOST'])
-        )
+        ::RabbitMQManager.new(ENV['RABBITMQ_MNGR'] || 'http://guest:guest@localhost:15672'),
+        ::RabbitMQ::Cluster::Etcd.build
       )
     end
 

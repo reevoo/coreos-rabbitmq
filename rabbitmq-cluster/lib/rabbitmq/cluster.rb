@@ -1,5 +1,4 @@
 require "rabbitmq/cluster/version"
-require "rabbitmq/cluster/etcd"
 require "rabbitmq/cluster/server"
 
 module RabbitMQ

@@ -6,6 +6,18 @@ describe RabbitMQ::Cluster::Server do
 
   subject { described_class.new(client, etcd) }
 
+  describe '.build' do
+    before do
+      allow(RabbitMQ::Cluster::Etcd).to receive(:build).and_return(etcd)
+      allow(RabbitMQManager).to receive(:new).and_return(client)
+    end
+
+    it 'sets up an instance' do
+      expect(described_class).to receive(:new).with(client, etcd)
+      described_class.build
+    end
+  end
+
   describe '#name' do
     let(:client) do
       double(

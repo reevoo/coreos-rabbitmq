@@ -5,6 +5,12 @@ module RabbitMQ::Cluster
     attr_accessor :client
     private :client
 
+    def self.build
+      new(
+        ::Etcd::Client.new(uri: ENV['ETCD_HOST'])
+      )
+    end
+
     def initialize(client)
       self.client = client
       client.connect

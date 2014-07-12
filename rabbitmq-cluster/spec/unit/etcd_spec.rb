@@ -4,6 +4,17 @@ describe RabbitMQ::Cluster::Etcd do
   let(:etcd_client) { double(:etcd, connect: true) }
   subject { described_class.new(etcd_client) }
 
+  describe '.build' do
+    before do
+      allow(Etcd::Client).to receive(:new).and_return(etcd_client)
+    end
+
+    it 'sets up an instance' do
+      expect(described_class).to receive(:new).with(etcd_client)
+      described_class.build
+    end
+  end
+
   describe '#nodes' do
     it 'returns the list of nodes registed in etcd' do
       allow(etcd_client).to receive(:get).with('/rabbitmq/nodes').and_return(
