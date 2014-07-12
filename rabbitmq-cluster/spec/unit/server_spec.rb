@@ -161,7 +161,6 @@ describe RabbitMQ::Cluster::Server do
           end
 
           it 'does nothing' do
-            expect(subject).to_not receive(:"`")
             expect(subject).to_not receive(:system)
             subject.synchronize
           end
@@ -173,10 +172,10 @@ describe RabbitMQ::Cluster::Server do
         end
 
         it 'stops the management app before clustering' do
-          expect(subject).to receive(:"`")
-          .with('rabbitmqctl stop_app')
-          expect(subject).to receive(:"`")
-          .with('rabbitmqctl start_app')
+          expect(subject).to receive(:system)
+            .with('rabbitmqctl stop_app')
+          expect(subject).to receive(:system)
+            .with('rabbitmqctl start_app')
           subject.synchronize
         end
 
