@@ -62,7 +62,7 @@ class RabbitMQ::Cluster
     end
 
     def remove_stopped_nodes
-      etcd.aquire_lock do
+      etcd.acquire_lock do
         stopped_nodes.each do |node_name|
           system("rabbitmqctl forget_cluster_node #{node_name}")
         end

@@ -1,7 +1,7 @@
 require 'spec_helper'
 
 describe RabbitMQ::Cluster::Etcd do
-  let(:etcd_client) { double(:etcd, connect: true) }
+  let(:etcd_client) { double(:etcd) }
   subject { described_class.new(etcd_client) }
 
   describe '.build' do
@@ -18,16 +18,25 @@ describe RabbitMQ::Cluster::Etcd do
   describe '#nodes' do
     it 'returns the list of nodes registed in etcd' do
       allow(etcd_client).to receive(:get).with('/rabbitmq/nodes').and_return(
-        {
-          "/rabbitmq/nodes/rabbit@rabbit1" => "rabbit@rabbit1",
-          "/rabbitmq/nodes/rabbit@rabbit2" => "rabbit@rabbit2"
-        }
+        double(:response,
+               children: [
+                 double(:response, value: "rabbit@rabbit1"),
+                 double(:response, value: "rabbit@rabbit2")
+               ]
+              )
       )
       expect(subject.nodes).to eq ["rabbit@rabbit1", "rabbit@rabbit2"]
     end
 
     it 'returns an empty array if there are no nodes registered' do
-      allow(etcd_client).to receive(:get).with('/rabbitmq/nodes')
+      allow(etcd_client).to receive(:get).with('/rabbitmq/nodes').and_return(
+        double(:response, children: [])
+      )
+      expect(subject.nodes).to eq []
+    end
+
+    it 'returns an empty array if the nodes directory has not been created' do
+      allow(etcd_client).to receive(:get).with('/rabbitmq/nodes').and_raise(Etcd::KeyNotFound)
       expect(subject.nodes).to eq []
     end
   end
@@ -39,7 +48,7 @@ describe RabbitMQ::Cluster::Etcd do
       expect(etcd_client).to receive(:set)
       .with(
         "/rabbitmq/nodes/#{nodename}",
-        nodename,
+        value: nodename,
         ttl: 10
       )
       subject.register(nodename)
@@ -63,7 +72,7 @@ describe RabbitMQ::Cluster::Etcd do
     before do
       allow(etcd_client).to receive(:get)
                               .with('/rabbitmq/erlang_cookie')
-                              .and_return(erlang_cookie)
+                              .and_return(double(:response, value: erlang_cookie))
     end
 
     it 'has a getter' do
@@ -74,55 +83,50 @@ describe RabbitMQ::Cluster::Etcd do
       expect(etcd_client).to receive(:set)
                                .with(
                                  '/rabbitmq/erlang_cookie',
-                                 erlang_cookie
+                                 value: erlang_cookie
                                )
       subject.erlang_cookie = erlang_cookie
     end
   end
 
-  describe '#aquire_lock' do
-    let(:thingy) { double(run: nil) }
+  describe '#acquire_lock' do
     before do
-      allow(etcd_client).to receive(:update).with('/rabbitmq/lock', false, true).and_return(true)
-      allow(etcd_client).to receive(:update).with('/rabbitmq/lock', true, false).and_return(true)
+      allow(etcd_client).to receive(:compare_and_swap).with('/rabbitmq/lock', value: true, prevValue: false)
+      allow(etcd_client).to receive(:set).with('/rabbitmq/lock', value: false)
     end
 
     describe 'when we can get the lock' do
       it 'runs the code' do
-        expect(etcd_client).to receive(:update).with('/rabbitmq/lock', true, false).and_return(true)
-        expect(thingy).to receive(:run)
-
-        subject.aquire_lock { thingy.run }
+        expect(etcd_client).to receive(:compare_and_swap).with('/rabbitmq/lock', value: true, prevValue: false)
+        expect { |b| subject.acquire_lock(&b) }.to yield_control
       end
 
       it 'gives the lock back when its done' do
-        expect(etcd_client).to receive(:update).with('/rabbitmq/lock', false, true).and_return(true)
-
-        subject.aquire_lock { thingy.run }
+        expect(etcd_client).to receive(:set).with('/rabbitmq/lock', value: false)
+        expect { |b| subject.acquire_lock(&b) }.to yield_control
       end
     end
 
     describe "when we can't get the lock" do
-      it 'retries till the lock can be aquired' do
-        expect(etcd_client).to receive(:update)
-                                 .with('/rabbitmq/lock', true, false)
-                                 .at_least(3).times
-                                 .and_return(false, false, true)
-        expect(thingy).to receive(:run)
-
-        subject.aquire_lock { thingy.run }
+      it 'retries till the lock can be acquired' do
+        allow(etcd_client).to receive(:watch)
+        call_count = 0
+        expect(etcd_client).to receive(:compare_and_swap).with('/rabbitmq/lock', value: true, prevValue: false) do
+          call_count += 1
+          raise Etcd::TestFailed unless call_count == 3
+        end
+        expect { |b| subject.acquire_lock(&b) }.to yield_control
       end
     end
 
     describe 'when something explodes' do
       before do
-        allow(etcd_client).to receive(:update).with('/rabbitmq/lock', false, true).and_return(true)
-        allow(etcd_client).to receive(:update).with('/rabbitmq/lock', true, false).and_return(true)
+        allow(etcd_client).to receive(:compare_and_swap)
       end
 
       it 'gives the lock back' do
-        expect(etcd_client).to receive(:update).with('/rabbitmq/lock', false, true).and_return(true)
-        expect { subject.aquire_lock { fail } }.to raise_error
+        expect(etcd_client).to receive(:set).with('/rabbitmq/lock', value: false)
+        expect { subject.acquire_lock { fail } }.to raise_error
       end
     end
   end

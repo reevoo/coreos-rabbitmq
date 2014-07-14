@@ -7,39 +7,43 @@ class RabbitMQ::Cluster
 
     def self.build
       new(
-        ::Etcd::Client.new(uri: ENV['ETCD_HOST'])
+        ::Etcd::Client.new(host: ENV['ETCD_HOST'])
       )
     end
 
     def initialize(client)
       self.client = client
-      client.connect
     end
 
-    def aquire_lock
-      with_retry do
-        sleep 1 until lock = client.update('/rabbitmq/lock', true, false)
-      end
+    def acquire_lock
+      client.compare_and_swap('/rabbitmq/lock', value: true, prevValue: false)
       yield
+    rescue ::Etcd::TestFailed
+      client.watch('/rabbitmq/lock')
+      retry
     ensure
-      client.update('/rabbitmq/lock', false, true)
+      client.set('/rabbitmq/lock', value: false)
     end
 
     def nodes
       with_retry do
-        (client.get('/rabbitmq/nodes') || {}).values.sort
+        begin
+          client.get('/rabbitmq/nodes').children.map(&:value).sort
+        rescue ::Etcd::KeyNotFound
+          []
+        end
       end
     end
 
     def register(node_name, wait=nil)
       with_retry(wait) do
-        client.set(key_for(node_name), node_name, ttl: 10)
+        client.set(key_for(node_name), value: node_name, ttl: 10)
       end
     end
 
     def erlang_cookie
       with_retry do
-        client.get('/rabbitmq/erlang_cookie')
+        client.get('/rabbitmq/erlang_cookie').value
       end
     end
 
@@ -47,7 +51,7 @@ class RabbitMQ::Cluster
       with_retry do
         client.set(
           '/rabbitmq/erlang_cookie',
-          erlang_cookie
+          value: erlang_cookie
         )
       end
     end

@@ -229,7 +229,7 @@ class FakeEtcd
     self.nodes = []
   end
 
-  def aquire_lock
+  def acquire_lock
     yield
   end
 
