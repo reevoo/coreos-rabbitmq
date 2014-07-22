@@ -6,6 +6,7 @@ class RabbitMQ::Cluster
     private :client
 
     def self.build
+      puts "etcd address: " + ENV['ETCD_HOST']
       new(
         ::Etcd::Client.new(host: ENV['ETCD_HOST'])
       )
