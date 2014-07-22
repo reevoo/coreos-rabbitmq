@@ -20,7 +20,7 @@ RUN /usr/sbin/rabbitmq-plugins enable rabbitmq_management
 RUN echo "[{rabbit, [{loopback_users, []}]}]." > /etc/rabbitmq/rabbitmq.config
 ENV RABBITMQ_SERVER_START_ARGS -eval error_logger:tty(true).
 
-RUN gem install rabbitmq-cluster -v 0.0.19
+RUN gem install rabbitmq-cluster -v 0.0.20
 
 EXPOSE 4369 5672 15672 25672
 ENTRYPOINT /usr/local/bin/rabbitmq-cluster & /usr/local/bin/rabbitmq-cluster-prestart && /usr/sbin/rabbitmq-server
