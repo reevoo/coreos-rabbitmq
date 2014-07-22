@@ -1,15 +1,1 @@
-[Unit]
-Description=RabbitMQ Broker
-After=docker.service
-Requires=docker.service
-
-[Service]
-TimeoutStartSec=0
-ExecStartPre=/usr/bin/docker pull errm/rabbitmq:0.0.18
-ExecStart=/usr/bin/docker run --rm --name rabbitmq -h %H -e ETCD_HOST=http://10.1.42.1:4001 -p 4369:4369 -p 5672:5672 -p 15672:15672 -p 25672:25672 errm/rabbitmq:0.0.18
-ExecStop=/usr/bin/docker stop -t 5 rabbitmq
-Restart=always
-RestartSec=7
-
-[X-Fleet]
-X-Conflicts=rabbitmq.*.service
+rabbitmq.1.service

@@ -22,13 +22,5 @@ ENV RABBITMQ_SERVER_START_ARGS -eval error_logger:tty(true).
 
 RUN gem install rabbitmq-cluster -v 0.0.19
 
-#THIS IS A HACK TO TEST SHIT ON VAGRANT WITHOUT DNS
-RUN mkdir -p /override_lib && cp /etc/hosts /var/ && cp /lib/x86_64-linux-gnu/libnss_files.so.2 /override_lib
-RUN sed -ie 's:/etc/hosts:/var/hosts:g' /override_lib/libnss_files.so.2
-ENV LD_LIBRARY_PATH /override_lib
-RUN echo "172.17.8.101 core-01" >> /var/hosts
-RUN echo "172.17.8.102 core-02" >> /var/hosts
-RUN echo "172.17.8.103 core-03" >> /var/hosts
-
 EXPOSE 4369 5672 15672 25672
 ENTRYPOINT /usr/local/bin/rabbitmq-cluster & /usr/local/bin/rabbitmq-cluster-prestart && /usr/sbin/rabbitmq-server
