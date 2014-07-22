@@ -1,0 +1,15 @@
+[Unit]
+Description=RabbitMQ Discovery
+BindsTo=rabbitmq.1.service
+
+[Service]
+TimeoutStartSec=0
+EnvironmentFile=/etc/environment
+ExecStartPre=/usr/bin/docker pull errm/rabbitmq-discovery:latest
+ExecStart=/usr/bin/bash -c 'docker run --rm --name rabbitmq-discovery -e ETCD_HOST=http://10.1.42.1:4001 -e RABBITMQ_MNGR=http://guest:guest@$COREOS_PRIVATE_IPV4:15672 errm/rabbitmq-discovery:latest'
+ExecStop=/usr/bin/docker stop -t 5 rabbitmq-discovery
+Restart=always
+RestartSec=7
+
+[X-Fleet]
+X-ConditionMachineOf=rabbitmq.1.service
