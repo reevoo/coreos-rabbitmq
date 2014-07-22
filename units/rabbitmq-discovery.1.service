@@ -5,8 +5,8 @@ BindsTo=rabbitmq.1.service
 [Service]
 TimeoutStartSec=0
 EnvironmentFile=/etc/environment
-ExecStartPre=/usr/bin/docker pull reevoo/coreos-rabbitmq-discovery:latest
-ExecStart=/usr/bin/bash -c 'docker run --rm --name coreos-rabbitmq-discovery -e ETCD_HOST=$COREOS_PRIVATE_IPV4 -e RABBITMQ_MNGR=http://guest:guest@$COREOS_PRIVATE_IPV4:15672 reevoo/coreos-rabbitmq-discovery:latest'
+ExecStartPre=/usr/bin/docker pull reevoo/coreos-rabbitmq-discovery:0.0.20
+ExecStart=/usr/bin/bash -c 'docker run --rm --name coreos-rabbitmq-discovery -e ETCD_HOST=$COREOS_PRIVATE_IPV4 -e RABBITMQ_MNGR=http://guest:guest@$COREOS_PRIVATE_IPV4:15672 reevoo/coreos-rabbitmq-discovery:0.0.20'
 ExecStop=/usr/bin/docker stop -t 5 coreos-rabbitmq-discovery
 Restart=always
 RestartSec=7
